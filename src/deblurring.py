@@ -18,13 +18,13 @@ class DeblurringMethod(enum.Enum):
 class WienerConfig:
     """Configuration for Wiener algorithm (from skimage)"""
 
-    balance: float = -1.0
+    balance: float = 0.1
 
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
         output = np.zeros_like(image)
         for channel in range(image.shape[-1]):
             if self.balance < 0.0:
-                output[..., channel] = skimage.restoration.unsupervised_wiener(image[..., channel], psf)
+                output[..., channel] = skimage.restoration.unsupervised_wiener(image[..., channel], psf)[0]
             else:
                 output[..., channel] = skimage.restoration.wiener(image[..., channel], psf, self.balance)
 
@@ -40,7 +40,7 @@ class RichardsonLucyConfig:
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
         output = np.zeros_like(image)
         for channel in range(image.shape[-1]):
-            output[..., channel] = skimage.restoration.richardson_lucy(image, psf, self.num_iter)
+            output[..., channel] = skimage.restoration.richardson_lucy(image[..., channel], psf, self.num_iter)
 
         return output
 
@@ -49,7 +49,7 @@ class RichardsonLucyConfig:
 class TGVConfig:
     """Configuration for our TGV approach"""
 
-    alpha: float = 0.002
+    alpha: float = 0.0002
     order: int = 2
     num_iter = 5000
 
@@ -59,7 +59,7 @@ class TGVConfig:
             image.transpose(-1, *range(image.ndim - 1))[None],
             psf[None, None],
             [self.alpha] * self.order,
-            padding_mode="reflect",
+            padding_mode="constant",
             num_iter=self.num_iter,
             stopping=stopping,
             verbose=True,
