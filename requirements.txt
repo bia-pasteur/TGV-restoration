@@ -1,0 +1,13 @@
+black
+dacite
+expyrun
+ipywidgets
+matplotlib
+mypy
+notebook
+pylint
+scikit-image
+scipy
+# tgv
+tqdm
+types-tqdm
