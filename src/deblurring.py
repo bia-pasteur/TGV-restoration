@@ -52,17 +52,17 @@ class TGVConfig:
     """Configuration for our TGV approach"""
 
     alpha: float = 0.00002
+    beta: float = 0.2
     order: int = 2
     num_iter: int = 5000
     stopping_proportion: float = 0.1  # Improvement in 100 steps
 
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
-        # stopping = tgv.PlateauStoppingCriterion(1e-2 * self.alpha, 500)  # Stopping criterion
         stopping = ProportionPlateauStoppingCriterion(self.stopping_proportion, 100, 0.9)
         return tgv.tgv_deconvolution(
             image.transpose(-1, *range(image.ndim - 1))[None],
             psf[None, None],
-            [self.alpha] * self.order,
+            [self.alpha] + [self.beta] * (self.order - 1),
             padding_mode="constant",
             num_iter=self.num_iter,
             stopping=stopping,
