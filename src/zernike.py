@@ -87,6 +87,7 @@ def defocus(
         name="defocus",
     )
 
+
 def gaussian_blur(
     image: np.ndarray,
     sigma: float = 5,
@@ -111,10 +112,7 @@ def gaussian_blur(
     else:  # Color image
         # Apply the Gaussian filter to each channel separately
         blurred_image = np.stack(
-            [
-                gaussian_filter(image[:, :, channel], sigma=sigma)
-                for channel in range(image.shape[2])
-            ],
+            [gaussian_filter(image[:, :, channel], sigma=sigma) for channel in range(image.shape[2])],
             axis=2,
         )
     return _normalize_image(blurred_image)
@@ -145,6 +143,7 @@ def quadrafoil(
         wavelength=wavelength,
         name="quadrafoil",
     )
+
 
 def second_astigmatism(
     image: np.ndarray,
@@ -198,7 +197,6 @@ def second_coma(
         wavelength=wavelength,
         name="second_coma",
     )
-
 
 
 def second_quadrafoil(
@@ -255,7 +253,6 @@ def second_spherical(
     )
 
 
-
 def second_trefoil(
     image: np.ndarray,
     aberration_amplitude: float = 0.0,
@@ -309,6 +306,7 @@ def third_astigmatism(
         name="third_astigmatism",
     )
 
+
 def spherical(
     image: np.ndarray,
     aberration_amplitude: float = 0.0,
@@ -334,7 +332,6 @@ def spherical(
         wavelength=wavelength,
         name="spherical",
     )
-
 
 
 def trefoil(
@@ -369,13 +366,14 @@ def _normalize_image(image, dtype=np.float32):
     image = image.astype(dtype)
     return (image - image.min()) / (image.max() - image.min())
 
+
 def _zernike_blur(
     image: np.ndarray,
     radial_order: int = 0,
     azimuthal_frequency: int = 0,
     aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
+    pupil_diameter: float = 3.0,
+    wavelength: float = 450.0,
     name: str | None = None,
 ) -> np.ndarray:
     """
@@ -387,7 +385,7 @@ def _zernike_blur(
         azimuthal_frequency (int): Azimuthal frequency of the Zernike polynomial. Default: 0
         aberration_amplitude (float): Amplitude of the aberration. Default: 0.0
         pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
+        wavelength (float): Wavelength of light in nanometers. Default: 450
         name (str | None): Name of the aberration (e.g., "defocus", "astigmatism").
             If provided, overrides `radial_order` and `azimuthal_frequency` with preset values.
             Default: None
@@ -450,10 +448,7 @@ def _zernike_blur(
     else:  # Color image
         # Apply the convolution to each channel separately
         blurred = np.stack(
-            [
-                convolve(image[:, :, channel], kernel, mode="same")
-                for channel in range(image.shape[2])
-            ],
+            [convolve(image[:, :, channel], kernel, mode="same") for channel in range(image.shape[2])],
             axis=2,
         )
     return blurred
@@ -463,8 +458,8 @@ def _zernike_psf(
     radial_order: int,
     azimuthal_frequency: int,
     aberration_amplitude: float,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
+    pupil_diameter: float = 3.0,
+    wavelength: float = 450.0,
 ):
     """
     Computes the point spread function (PSF) of an optical system with Zernike aberrations.
@@ -500,9 +495,7 @@ def _zernike_psf(
     circular_pupil = (np.sqrt(X**2 + Y**2) <= pupil_radius).astype(np.float32)
 
     # Compute Zernike polynomial
-    normalization_factor = np.sqrt(
-        2 * (radial_order + 1) / (1 + (azimuthal_frequency == 0))
-    )
+    normalization_factor = np.sqrt(2 * (radial_order + 1) / (1 + (azimuthal_frequency == 0)))
 
     if radial_order == 0:
         zernike_polynomial = circular_pupil
@@ -534,17 +527,7 @@ def _zernike_psf(
     point_spread_function = (
         np.abs(
             fftshift(
-                fft2(
-                    circular_pupil
-                    * np.exp(
-                        -1j
-                        * 2
-                        * np.pi
-                        * aberration_amplitude
-                        * zernike_polynomial
-                        / wavelength
-                    )
-                )
+                fft2(circular_pupil * np.exp(-1j * 2 * np.pi * aberration_amplitude * zernike_polynomial / wavelength))
                 / pupil_area
             )
         )

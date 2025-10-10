@@ -6,6 +6,8 @@ import skimage.restoration
 
 import tgv
 
+from .stopping import ProportionPlateauStoppingCriterion
+
 
 class DeblurringMethod(enum.Enum):
     WIENER = "wiener"
@@ -49,12 +51,14 @@ class RichardsonLucyConfig:
 class TGVConfig:
     """Configuration for our TGV approach"""
 
-    alpha: float = 0.0002
+    alpha: float = 0.00002
     order: int = 2
-    num_iter = 5000
+    num_iter: int = 5000
+    stopping_proportion: float = 0.1  # Improvement in 100 steps
 
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
-        stopping = tgv.PlateauStoppingCriterion(1e-5, 500)  # Stopping criterion
+        # stopping = tgv.PlateauStoppingCriterion(1e-2 * self.alpha, 500)  # Stopping criterion
+        stopping = ProportionPlateauStoppingCriterion(self.stopping_proportion, 100, 0.9)
         return tgv.tgv_deconvolution(
             image.transpose(-1, *range(image.ndim - 1))[None],
             psf[None, None],
