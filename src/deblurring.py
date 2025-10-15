@@ -4,6 +4,8 @@ import enum
 import numpy as np
 import skimage.restoration
 
+from cellpose import denoise
+
 import tgv
 
 from .stopping import ProportionPlateauStoppingCriterion
@@ -17,6 +19,18 @@ class DeblurringMethod(enum.Enum):
 
 
 @dataclasses.dataclass
+class CellposeConfig:
+    """Configuration for Wiener algorithm (from skimage)"""
+
+    def run(self, image: np.ndarray) -> np.ndarray:
+        model = denoise.DenoiseModel(model_type="deblur_cyto3")
+        channels = image.shape[-1]
+        output = np.zeros_like(image)
+        for channel in range(channels):
+            output[..., channel] = model.eval(image[...,channel])[...,0]
+        return output
+
+@dataclasses.dataclass
 class WienerConfig:
     """Configuration for Wiener algorithm (from skimage)"""
 
@@ -26,9 +40,9 @@ class WienerConfig:
         output = np.zeros_like(image)
         for channel in range(image.shape[-1]):
             if self.balance < 0.0:
-                output[..., channel] = skimage.restoration.unsupervised_wiener(image[..., channel], psf)[0]
+                output[..., channel] = skimage.restoration.unsupervised_wiener(image[..., channel], psf, clip = False)[0]
             else:
-                output[..., channel] = skimage.restoration.wiener(image[..., channel], psf, self.balance)
+                output[..., channel] = skimage.restoration.wiener(image[..., channel], psf, self.balance, clip = False)
 
         return output
 
@@ -42,7 +56,7 @@ class RichardsonLucyConfig:
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
         output = np.zeros_like(image)
         for channel in range(image.shape[-1]):
-            output[..., channel] = skimage.restoration.richardson_lucy(image[..., channel], psf, self.num_iter)
+            output[..., channel] = skimage.restoration.richardson_lucy(image[..., channel], psf, self.num_iter, clip = False)
 
         return output
 
@@ -54,8 +68,8 @@ class TGVConfig:
     alpha: float = 0.00002
     beta: float = 0.2
     order: int = 2
-    num_iter: int = 5000
-    stopping_proportion: float = 0.1  # Improvement in 100 steps
+    num_iter: int = 10000
+    stopping_proportion: float = 0.01  # Improvement in 100 steps
 
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
         stopping = ProportionPlateauStoppingCriterion(self.stopping_proportion, 100, 0.9)
@@ -75,6 +89,7 @@ class DeblurringConfig:
     """Deblurring configuration"""
 
     method: DeblurringMethod = DeblurringMethod.TGV
+    cellpose: CellposeConfig = dataclasses.field(default_factory=CellposeConfig)
     wiener: WienerConfig = dataclasses.field(default_factory=WienerConfig)
     richardson_lucy: RichardsonLucyConfig = dataclasses.field(default_factory=RichardsonLucyConfig)
     tgv: TGVConfig = dataclasses.field(default_factory=TGVConfig)
@@ -99,5 +114,7 @@ class DeblurringConfig:
             return self.richardson_lucy.run(image, psf)
         if self.method == DeblurringMethod.TGV:
             return self.tgv.run(image, psf)
+        if self.method == DeblurringMethod.CELLPOSE:
+            return self.cellpose.run(image)
 
         raise ValueError(f"Unknown DeblurringMethod {self.method}")
