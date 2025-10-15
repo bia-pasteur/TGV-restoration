@@ -1,466 +1,41 @@
 # pylint: disable=no-member
 
+from typing import Dict, Tuple
+
 import numpy as np
-from scipy.ndimage import gaussian_filter
-from scipy.signal import convolve
-from scipy.special import factorial
-from scipy.fftpack import fft2, fftshift
+from scipy.special import factorial  # type: ignore
+from scipy.fftpack import fft2, fftshift  # type: ignore
 
 
-def astigmatism(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies an astigmatism aberration to the input image using Zernike polynomials.
+from tgv.inverse.convolve import gaussian_kernel
 
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the astigmatism aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="astigmatism",
-    )
+OPTICAL_ABERRATIONS: Dict[str, Tuple[int, int]] = {
+    "defocus": (2, 0),  # Radial order, azimuthal frequency
+    "astigmastism": (2, 2),
+    "coma": (3, 1),
+    "trefoil": (3, 3),
+    "spherical": (4, 0),
+    "quadrafoil": (4, 4),
+    # Others: (second spherical, trefoil, ....)
+}
 
 
-def coma(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a coma aberration to the input image using Zernike polynomials.
+def gaussian_psf(sigma: float = 3.0) -> np.ndarray:
+    """Gaussian psf"""
+    size = 2 * int(sigma * 5) + 1
 
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the coma aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="coma",
-    )
+    return gaussian_kernel([size, size], [sigma, sigma])[0, 0]
 
 
-def defocus(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a defocus aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the defocus aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="defocus",
-    )
-
-
-def gaussian_blur(
-    image: np.ndarray,
-    sigma: float = 5,
-) -> np.ndarray:
-    """
-    Applies a Gaussian blur to the input image.
-
-    Args:
-        image (np.ndarray): The input image (grayscale or color).
-        sigma (float): Standard deviation for the Gaussian kernel. Controls the amount of blur. Default: 5
-
-    Returns:
-        np.ndarray: The blurred image, normalized to the [0,1] range.
-
-    Notes:
-        For grayscale images, the blur is applied directly.
-        For color images, the blur is applied to each channel separately.
-    """
-    image = np.asarray(image, dtype=np.float32)
-    if len(image.shape) == 2:  # Grayscale image
-        blurred_image = gaussian_filter(image, sigma=sigma)
-    else:  # Color image
-        # Apply the Gaussian filter to each channel separately
-        blurred_image = np.stack(
-            [gaussian_filter(image[:, :, channel], sigma=sigma) for channel in range(image.shape[2])],
-            axis=2,
-        )
-    return _normalize_image(blurred_image)
-
-
-def quadrafoil(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a quadrafoil aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the quadrafoil aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="quadrafoil",
-    )
-
-
-def second_astigmatism(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a second-order astigmatism aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="second_astigmatism",
-    )
-
-
-def second_coma(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a second-order coma aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="second_coma",
-    )
-
-
-def second_quadrafoil(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a second-order quadrafoil aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="second_quadrafoil",
-    )
-
-
-def second_spherical(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a second-order spherical aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="second_spherical",
-    )
-
-
-def second_trefoil(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a second-order trefoil aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="second_trefoil",
-    )
-
-
-def third_astigmatism(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a third-order astigmatism aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="third_astigmatism",
-    )
-
-
-def spherical(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a spherical aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the spherical aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image, normalized to the [0,1] range.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="spherical",
-    )
-
-
-def trefoil(
-    image: np.ndarray,
-    aberration_amplitude: float = 0.0,
-    pupil_diameter: float = 3,
-    wavelength: int = 450,
-) -> np.ndarray:
-    """
-    Applies a trefoil aberration to the input image using Zernike polynomials.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        aberration_amplitude (float): Amplitude of the trefoil aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (int): Wavelength of light in nanometers. Default: 450
-
-    Returns:
-        np.ndarray: The aberrated image.
-    """
-    return _zernike_blur(
-        image=image,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-        name="trefoil",
-    )
-
-
-def _normalize_image(image, dtype=np.float32):
-    """Normalize an image to the [0,1] range."""
-    image = image.astype(dtype)
-    return (image - image.min()) / (image.max() - image.min())
-
-
-def _zernike_blur(
-    image: np.ndarray,
-    radial_order: int = 0,
-    azimuthal_frequency: int = 0,
-    aberration_amplitude: float = 0.0,
+def zernike_psf(
+    radial_order: int = 2,
+    azimuthal_frequency: int = 2,
+    aberration_amplitude: float = 0.08,
     pupil_diameter: float = 3.0,
     wavelength: float = 450.0,
+    *,
     name: str | None = None,
 ) -> np.ndarray:
-    """
-    Applies a Zernike polynomial-based blur to the input image, simulating optical aberrations.
-
-    Args:
-        image (np.ndarray): Input image (grayscale or color).
-        radial_order (int): Radial order of the Zernike polynomial. Default: 0
-        azimuthal_frequency (int): Azimuthal frequency of the Zernike polynomial. Default: 0
-        aberration_amplitude (float): Amplitude of the aberration. Default: 0.0
-        pupil_diameter (float): Diameter of the pupil in millimeters. Default: 3
-        wavelength (float): Wavelength of light in nanometers. Default: 450
-        name (str | None): Name of the aberration (e.g., "defocus", "astigmatism").
-            If provided, overrides `radial_order` and `azimuthal_frequency` with preset values.
-            Default: None
-
-    Returns:
-        np.ndarray: The aberrated image, normalized to the [0,1] range.
-
-    Notes:
-        If `name` is provided, the function uses preset values for `radial_order` and `azimuthal_frequency`.
-        For grayscale images, the convolution is applied directly.
-        For color images, the convolution is applied to each channel separately.
-    """
-    if name == "defocus":
-        radial_order = 2
-        azimuthal_frequency = 0
-    elif name == "astigmatism":
-        radial_order = 2
-        azimuthal_frequency = 2
-    elif name == "coma":
-        radial_order = 3
-        azimuthal_frequency = 1
-    elif name == "trefoil":
-        radial_order = 3
-        azimuthal_frequency = 3
-    elif name == "spherical":
-        radial_order = 4
-        azimuthal_frequency = 0
-    elif name == "second_astigmatism":
-        radial_order = 4
-        azimuthal_frequency = 2
-    elif name == "quadrafoil":
-        radial_order = 4
-        azimuthal_frequency = 4
-    elif name == "second_coma":
-        radial_order = 5
-        azimuthal_frequency = 1
-    elif name == "second_trefoil":
-        radial_order = 5
-        azimuthal_frequency = 3
-    elif name == "second_spherical":
-        radial_order = 6
-        azimuthal_frequency = 0
-    elif name == "third_astigmatism":
-        radial_order = 6
-        azimuthal_frequency = 2
-    elif name == "second_quadrafoil":
-        radial_order = 6
-        azimuthal_frequency = 4
-
-    kernel = _zernike_psf(
-        radial_order=radial_order,
-        azimuthal_frequency=azimuthal_frequency,
-        aberration_amplitude=aberration_amplitude,
-        pupil_diameter=pupil_diameter,
-        wavelength=wavelength,
-    )
-
-    if len(image.shape) == 2:  # Grayscale image
-        blurred = convolve(image, kernel, mode="same")
-    else:  # Color image
-        # Apply the convolution to each channel separately
-        blurred = np.stack(
-            [convolve(image[:, :, channel], kernel, mode="same") for channel in range(image.shape[2])],
-            axis=2,
-        )
-    return blurred
-
-
-def _zernike_psf(
-    radial_order: int,
-    azimuthal_frequency: int,
-    aberration_amplitude: float,
-    pupil_diameter: float = 3.0,
-    wavelength: float = 450.0,
-):
     """
     Computes the point spread function (PSF) of an optical system with Zernike aberrations.
 
@@ -474,6 +49,9 @@ def _zernike_psf(
     Returns:
         np.ndarray: The point spread function (PSF) of the optical system.
     """
+    if name in OPTICAL_ABERRATIONS:
+        radial_order, azimuthal_frequency = OPTICAL_ABERRATIONS[name]
+
     # Convert units for calculation
     aberration_amplitude *= 1e-3  # mm
     wavelength *= 1e-6  # mm

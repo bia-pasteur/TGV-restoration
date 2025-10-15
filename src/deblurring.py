@@ -1,10 +1,10 @@
 import dataclasses
 import enum
 
+from cellpose import denoise
 import numpy as np
 import skimage.restoration
 
-from cellpose import denoise
 
 import tgv
 
@@ -20,15 +20,16 @@ class DeblurringMethod(enum.Enum):
 
 @dataclasses.dataclass
 class CellposeConfig:
-    """Configuration for Wiener algorithm (from skimage)"""
+    """Configuration for Cellpose denoising"""
 
     def run(self, image: np.ndarray) -> np.ndarray:
         model = denoise.DenoiseModel(model_type="deblur_cyto3")
         channels = image.shape[-1]
         output = np.zeros_like(image)
         for channel in range(channels):
-            output[..., channel] = model.eval(image[...,channel])[...,0]
+            output[..., channel] = model.eval(image[..., channel])[..., 0]
         return output
+
 
 @dataclasses.dataclass
 class WienerConfig:
@@ -40,9 +41,9 @@ class WienerConfig:
         output = np.zeros_like(image)
         for channel in range(image.shape[-1]):
             if self.balance < 0.0:
-                output[..., channel] = skimage.restoration.unsupervised_wiener(image[..., channel], psf, clip = False)[0]
+                output[..., channel] = skimage.restoration.unsupervised_wiener(image[..., channel], psf, clip=False)[0]
             else:
-                output[..., channel] = skimage.restoration.wiener(image[..., channel], psf, self.balance, clip = False)
+                output[..., channel] = skimage.restoration.wiener(image[..., channel], psf, self.balance, clip=False)
 
         return output
 
@@ -56,7 +57,9 @@ class RichardsonLucyConfig:
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
         output = np.zeros_like(image)
         for channel in range(image.shape[-1]):
-            output[..., channel] = skimage.restoration.richardson_lucy(image[..., channel], psf, self.num_iter, clip = False)
+            output[..., channel] = skimage.restoration.richardson_lucy(
+                np.clip(image[..., channel], 0.0, 1000.0), psf, self.num_iter, clip=False
+            )
 
         return output
 
@@ -65,11 +68,11 @@ class RichardsonLucyConfig:
 class TGVConfig:
     """Configuration for our TGV approach"""
 
-    alpha: float = 0.00002
+    alpha: float = 0.0005
     beta: float = 0.2
     order: int = 2
-    num_iter: int = 10000
-    stopping_proportion: float = 0.01  # Improvement in 100 steps
+    num_iter: int = 5000
+    stopping_proportion: float = 0.001  # Improvement in 100 steps
 
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
         stopping = ProportionPlateauStoppingCriterion(self.stopping_proportion, 100, 0.9)
@@ -80,7 +83,7 @@ class TGVConfig:
             padding_mode="constant",
             num_iter=self.num_iter,
             stopping=stopping,
-            verbose=True,
+            verbose=False,
         )[0].transpose(*range(1, image.ndim), 0)
 
 
