@@ -23,8 +23,9 @@ OPTICAL_ABERRATIONS: Dict[str, Tuple[int, int]] = {
 def gaussian_psf(sigma: float = 3.0) -> np.ndarray:
     """Gaussian psf"""
     size = 2 * int(sigma * 5) + 1
-
-    return gaussian_kernel([size, size], [sigma, sigma])[0, 0]
+    kernel = gaussian_kernel([size, size], [sigma, sigma])[0, 0]
+    kernel /= kernel.sum()
+    return kernel
 
 
 def zernike_psf(

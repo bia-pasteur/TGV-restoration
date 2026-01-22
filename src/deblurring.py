@@ -1,10 +1,10 @@
 import dataclasses
 import enum
+from typing import Optional
 
 from cellpose import denoise
 import numpy as np
 import skimage.restoration
-
 
 import tgv
 
@@ -22,7 +22,7 @@ class DeblurringMethod(enum.Enum):
 class CellposeConfig:
     """Configuration for Cellpose denoising"""
 
-    def run(self, image: np.ndarray) -> np.ndarray:
+    def run(self, image: np.ndarray, _: Optional[np.ndarray] = None) -> np.ndarray:
         model = denoise.DenoiseModel(model_type="deblur_cyto3")
         channels = image.shape[-1]
         output = np.zeros_like(image)
@@ -83,7 +83,7 @@ class TGVConfig:
             padding_mode="constant",
             num_iter=self.num_iter,
             stopping=stopping,
-            verbose=False,
+            verbose=True,
         )[0].transpose(*range(1, image.ndim), 0)
 
 

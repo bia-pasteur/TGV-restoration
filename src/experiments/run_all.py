@@ -19,7 +19,7 @@ from ..zernike import zernike_psf, gaussian_psf
 class ExperimentConfig:
     """Config for running experiments"""
 
-    abberation_amplitude: float = 0.08
+    aberration_amplitude: float = 0.08
     noise: float = 0.03
     psf_imperfection: float = 1.0
     datasets: Tuple[str, ...] = ("Brightfield", "Fluorescence", "Phase_Contrast")
@@ -80,9 +80,9 @@ def main(name: str, cfg_data: dict) -> None:
 
     for blur_name in tqdm.tqdm(cfg.blurs):
         if blur_name == "gaussian":
-            kernel = gaussian_psf(cfg.abberation_amplitude * 10)  # TODO: Yekta check
+            kernel = gaussian_psf(cfg.aberration_amplitude * 70)  # TODO: Yekta check
         else:
-            kernel = zernike_psf(aberration_amplitude=cfg.abberation_amplitude, name=blur_name)[70:-70, 70:-70]
+            kernel = zernike_psf(aberration_amplitude=cfg.aberration_amplitude, name=blur_name)[70:-70, 70:-70]
 
         for dataset in tqdm.tqdm(cfg.datasets):
             for image_path in (cfg.data_folder / dataset).iterdir():
@@ -98,7 +98,7 @@ def main(name: str, cfg_data: dict) -> None:
                             "file": image_name,
                             "Blur": blur_name,
                             "method": method_name,
-                            "amplitude": cfg.abberation_amplitude,
+                            "amplitude": cfg.aberration_amplitude,
                             "noise": cfg.noise,
                             "psf_imperfection": cfg.psf_imperfection,
                             "PSNR": psnr(image, deblurred),
