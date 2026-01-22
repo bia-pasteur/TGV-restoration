@@ -1,7 +1,7 @@
 import dataclasses
 import os
 import pathlib
-from typing import List
+from typing import Tuple
 
 import dacite
 import numpy as np
@@ -22,9 +22,9 @@ class ExperimentConfig:
     abberation_amplitude: float = 0.08
     noise: float = 0.03
     psf_imperfection: float = 1.0
-    datasets: List[str] = ["Brightfield", "Fluorescence", "Phase_Contrast"]
-    blurs: List[str] = ["astigmatism", "defocus", "coma", "quadrafoil", "spherical", "trefoil", "gaussian"]
-    methods: List[str] = ["cellpose", "wiener", "rl", "tv", "tgv", "tgv3", "tgv4"]
+    datasets: Tuple[str, ...] = ("Brightfield", "Fluorescence", "Phase_Contrast")
+    blurs: Tuple[str, ...] = ("astigmatism", "defocus", "coma", "quadrafoil", "spherical", "trefoil", "gaussian")
+    methods: Tuple[str, ...] = ("cellpose", "wiener", "rl", "tv", "tgv", "tgv3", "tgv4")
     data_folder: pathlib.Path = pathlib.Path(os.environ.get("EXPYRUN_CWD", ".")) / "Datasets"
 
 
