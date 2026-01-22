@@ -33,6 +33,8 @@ def zernike_psf(
     aberration_amplitude: float = 0.08,
     pupil_diameter: float = 3.0,
     wavelength: float = 450.0,
+    n_planes: int = 0,
+    plane_resolution: float = 0.5,
     *,
     name: str | None = None,
 ) -> np.ndarray:
@@ -45,6 +47,8 @@ def zernike_psf(
         aberration_amplitude (float): The amplitude of the aberration in micrometers.
         pupil_diameter (float, optional): The diameter of the pupil in millimeters. Defaults to 3.
         wavelength (int, optional): The wavelength of light in nanometers. Defaults to 450.
+        n_planes (int): Number of planes. 0 for 2D. 2n+1 for 3D stacks.
+        plane_resolution (float): Distance between stacks. Unit: Number of wavelength.
 
     Returns:
         np.ndarray: The point spread function (PSF) of the optical system.
@@ -69,8 +73,12 @@ def zernike_psf(
 
     X, Y = np.meshgrid(x, y, indexing="ij")
 
+    r = np.sqrt(X**2 + Y**2)
+    theta = np.arctan2(Y, X + 1e-20)
+    rho = r / pupil_radius
+
     # Set up circular pupil
-    circular_pupil = (np.sqrt(X**2 + Y**2) <= pupil_radius).astype(np.float32)
+    circular_pupil = (r <= pupil_radius).astype(np.float32)
 
     # Compute Zernike polynomial
     normalization_factor = np.sqrt(2 * (radial_order + 1) / (1 + (azimuthal_frequency == 0)))
@@ -79,13 +87,11 @@ def zernike_psf(
         zernike_polynomial = circular_pupil
     else:
         zernike_polynomial = np.zeros_like(X, dtype=np.float64)
-        r = np.sqrt(X**2 + Y**2)
-        theta = np.arctan2(Y, X + 1e-20)
         for s in range(int(0.5 * (radial_order - abs(azimuthal_frequency)) + 1)):
             zernike_polynomial += (
                 (-1) ** s
                 * factorial(radial_order - s)
-                * (r / pupil_radius) ** (radial_order - 2 * s)
+                * rho ** (radial_order - 2 * s)
                 / (
                     factorial(s)
                     * factorial(0.5 * (radial_order + abs(azimuthal_frequency)) - s)
@@ -101,14 +107,42 @@ def zernike_psf(
             )
         )
 
-    # Compute point spread function
-    point_spread_function = (
-        np.abs(
-            fftshift(
-                fft2(circular_pupil * np.exp(-1j * 2 * np.pi * aberration_amplitude * zernike_polynomial / wavelength))
-                / pupil_area
+    # 2D
+    if n_planes == 0:
+        # Compute point spread function
+        point_spread_function = (
+            np.abs(
+                fftshift(
+                    fft2(
+                        circular_pupil
+                        * np.exp(-1j * 2 * np.pi * aberration_amplitude * zernike_polynomial / wavelength)
+                    )
+                    / pupil_area
+                )
             )
+            ** 2
         )
-        ** 2
-    )
+        return point_spread_function / point_spread_function.sum()
+
+    # 3D
+    assert n_planes % 2 == 1
+    z_positions = np.linspace(-n_planes // 2, n_planes // 2, n_planes) * plane_resolution
+
+    # Aberration phase (fixed across z)
+    aberration_phase = 2 * np.pi * aberration_amplitude * zernike_polynomial / wavelength
+
+    psf_stack = []
+
+    for z in z_positions:
+        # Defocus phase (paraxial, normalized pupil)
+        defocus_phase = np.pi * z * rho**2
+
+        pupil_field = circular_pupil * np.exp(-1j * (aberration_phase + defocus_phase))
+
+        field = fftshift(fft2(pupil_field)) / pupil_area
+        psf = np.abs(field) ** 2
+
+        psf_stack.append(psf)
+
+    point_spread_function = np.stack(psf_stack, axis=0)
     return point_spread_function / point_spread_function.sum()
