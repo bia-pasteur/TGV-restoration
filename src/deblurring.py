@@ -98,6 +98,8 @@ class TGVConfig:
     alpha: float = 0.0005
     beta: float = 0.2
     order: int = 2
+    sparsity: float = 0.005
+    non_negative: bool = True
     num_iter: int = 5000
     stopping_proportion: float = 0.001  # Improvement in 100 steps
 
@@ -109,6 +111,8 @@ class TGVConfig:
             [self.alpha] + [self.beta] * (self.order - 1),
             padding_mode="constant",
             num_iter=self.num_iter,
+            sparsity=self.sparsity,
+            non_negative=self.non_negative,
             stopping=stopping,
             verbose=True,
         )[0].transpose(*range(1, image.ndim), 0)
