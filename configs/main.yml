@@ -27,6 +27,7 @@ methods:
   - cellpose
   - wiener
   - rl
+  - rltv
   - tv
   - tgv
   - tgv3

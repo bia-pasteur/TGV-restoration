@@ -1,5 +1,6 @@
 import dataclasses
 import enum
+import pathlib
 from typing import Optional
 
 from cellpose import denoise
@@ -9,11 +10,13 @@ import skimage.restoration
 import tgv
 
 from .stopping import ProportionPlateauStoppingCriterion
+from .deconvolutionlab import DeconvolutionLabRunner
 
 
 class DeblurringMethod(enum.Enum):
     WIENER = "wiener"
     RICHARDSON_LUCY = "richardson_lucy"
+    DECONVOLUTION_LAB = "deconvolution_lab"
     TGV = "tgv"
     CELLPOSE = "cellpose"
 
@@ -65,6 +68,30 @@ class RichardsonLucyConfig:
 
 
 @dataclasses.dataclass
+class DeconvolultionLabRLTV:
+    """Configuration for the Richardson-Lucy + TLV1 algorithm from DeconvolveLab2"""
+
+    deconvolution_lab_path: pathlib.Path = pathlib.Path("DeconvolutionLab_2.jar")
+    num_iter: int = 30
+    alpha: float = 0.0005
+    normalize_psf: bool = False
+
+    def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
+        runner = DeconvolutionLabRunner(self.deconvolution_lab_path, normalize_psf=self.normalize_psf)
+        output = np.zeros_like(image)
+        for channel in range(image.shape[-1]):
+            output[..., channel] = runner.run(
+                image[..., channel],
+                psf,
+                "RLTV",
+                self.num_iter,
+                self.alpha,
+            )
+
+        return output
+
+
+@dataclasses.dataclass
 class TGVConfig:
     """Configuration for our TGV approach"""
 
@@ -95,6 +122,7 @@ class DeblurringConfig:
     cellpose: CellposeConfig = dataclasses.field(default_factory=CellposeConfig)
     wiener: WienerConfig = dataclasses.field(default_factory=WienerConfig)
     richardson_lucy: RichardsonLucyConfig = dataclasses.field(default_factory=RichardsonLucyConfig)
+    deconvolution_lab: DeconvolultionLabRLTV = dataclasses.field(default_factory=DeconvolultionLabRLTV)
     tgv: TGVConfig = dataclasses.field(default_factory=TGVConfig)
 
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
@@ -115,6 +143,8 @@ class DeblurringConfig:
             return self.wiener.run(image, psf)
         if self.method == DeblurringMethod.RICHARDSON_LUCY:
             return self.richardson_lucy.run(image, psf)
+        if self.method == DeblurringMethod.DECONVOLUTION_LAB:
+            return self.deconvolution_lab.run(image, psf)
         if self.method == DeblurringMethod.TGV:
             return self.tgv.run(image, psf)
         if self.method == DeblurringMethod.CELLPOSE:

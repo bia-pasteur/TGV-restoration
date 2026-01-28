@@ -32,6 +32,9 @@ METHODS = {
     "cellpose": deblurring.CellposeConfig(),
     "wiener": deblurring.WienerConfig(),
     "rl": deblurring.RichardsonLucyConfig(),
+    "rltv": deblurring.DeconvolultionLabRLTV(
+        pathlib.Path(os.environ.get("DECONVOLUTION_LAB", "DeconvolutionLab_2.jar"))
+    ),
     "tv": deblurring.TGVConfig(order=1),
     "tgv": deblurring.TGVConfig(order=2),
     "tgv3": deblurring.TGVConfig(order=3),
@@ -80,7 +83,7 @@ def main(name: str, cfg_data: dict) -> None:
 
     for blur_name in tqdm.tqdm(cfg.blurs):
         if blur_name == "gaussian":
-            kernel = gaussian_psf(cfg.aberration_amplitude * 70)  # TODO: Yekta check
+            kernel = gaussian_psf(cfg.aberration_amplitude * 70)
         else:
             kernel = zernike_psf(aberration_amplitude=cfg.aberration_amplitude, name=blur_name)[70:-70, 70:-70]
 
