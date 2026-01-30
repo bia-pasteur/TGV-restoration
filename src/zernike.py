@@ -20,10 +20,18 @@ OPTICAL_ABERRATIONS: Dict[str, Tuple[int, int]] = {
 }
 
 
-def gaussian_psf(sigma: float = 3.0) -> np.ndarray:
+def gaussian_psf(sigma: float = 3.0, dim=2, anisotropy=7.0) -> np.ndarray:
     """Gaussian psf"""
+
     size = 2 * int(sigma * 5) + 1
-    kernel = gaussian_kernel([size, size], [sigma, sigma])[0, 0]
+    if dim == 2:
+        kernel = gaussian_kernel([size, size], [sigma, sigma])[0, 0]
+    elif dim == 3:
+        size_z = 2 * int(sigma / anisotropy * 5) + 1
+        kernel = gaussian_kernel([size_z, size, size], [sigma / anisotropy, sigma, sigma])[0, 0]
+    else:
+        raise ValueError("We only support 2D and 3D Gaussian kernels")
+
     kernel /= kernel.sum()
     return kernel
 
@@ -35,7 +43,7 @@ def zernike_psf(
     pupil_diameter: float = 3.0,
     wavelength: float = 450.0,
     n_planes: int = 0,
-    plane_resolution: float = 0.5,
+    plane_resolution: float = 2.0,
     *,
     name: str | None = None,
 ) -> np.ndarray:

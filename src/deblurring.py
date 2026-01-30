@@ -30,8 +30,17 @@ class CellposeConfig:
         channels = image.shape[-1]
         output = np.zeros_like(image)
         for channel in range(channels):
-            output[..., channel] = model.eval(image[..., channel])[..., 0]
-        return output
+            output[..., channel] = model.eval(image[..., channel], do_3D=image.ndim == 4)[..., 0]
+
+        # Let's renormalize cellpose output: Though we are blind, the kernel is normalized, and therefore
+        # the sum of intensity should be conserved (The other methods have access to the kernel and should already
+        # ~ respect this)
+
+        ratio = image.sum(axis=tuple(range(image.ndim - 1)), keepdims=True) / output.sum(
+            axis=tuple(range(image.ndim - 1)), keepdims=True
+        )
+
+        return output * ratio
 
 
 @dataclasses.dataclass
@@ -41,6 +50,9 @@ class WienerConfig:
     balance: float = 0.1
 
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
+        if psf.ndim == 3:  # Do not support 3D
+            return image
+
         output = np.zeros_like(image)
         for channel in range(image.shape[-1]):
             if self.balance < 0.0:
@@ -58,6 +70,9 @@ class RichardsonLucyConfig:
     num_iter: int = 50
 
     def run(self, image: np.ndarray, psf: np.ndarray) -> np.ndarray:
+        if psf.ndim == 3:  # Do not support 3D
+            return image
+
         output = np.zeros_like(image)
         for channel in range(image.shape[-1]):
             output[..., channel] = skimage.restoration.richardson_lucy(
@@ -136,7 +151,7 @@ class DeblurringConfig:
             image (np.ndarray): Blurred image
                 Shape: ([D, ]H, W, C), dtype: float
             psf (np.ndarray): Point Spread Function kernel
-                Shape: ([d, ], h, w), dtype: float
+                Shape: ([d, ]h, w), dtype: float
 
         Returns:
             np.ndarray: Deblurred image

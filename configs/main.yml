@@ -1,18 +1,20 @@
 __new_key_policy__: pass
 
 __run__:
-  __name__: "{aberration_amplitude}-{noise}-{psf_imperfection}"
+  __name__: "{aberration_amplitude}-{noise}-{psf_imperfection}-{sparsity}"
   __output_dir__: experiments
   __main__: src.experiments.run_all:main
 
 aberration_amplitude: 0.08
 noise: 0.03
 psf_imperfection: 1.0
+sparsity: 0.005
 
 datasets:
   - Brightfield
   - Fluorescence
   - Phase_Contrast
+  - CTC_3D
 
 blurs:
   - astigmatism
