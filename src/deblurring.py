@@ -111,9 +111,9 @@ class TGVConfig:
     """Configuration for our TGV approach"""
 
     alpha: float = 0.0005
-    beta: float = 0.2
+    beta: float = 0.002
     order: int = 2
-    sparsity: float = 0.005
+    sparsity: float = 0.0005
     non_negative: bool = True
     num_iter: int = 5000
     stopping_proportion: float = 0.001  # Improvement in 100 steps

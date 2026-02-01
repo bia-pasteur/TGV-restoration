@@ -8,7 +8,7 @@ __run__:
 aberration_amplitude: 0.08
 noise: 0.03
 psf_imperfection: 1.0
-sparsity: 0.005
+sparsity: 0.0005
 
 datasets:
   - Brightfield
