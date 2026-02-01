@@ -1,13 +1,15 @@
 black
+cellpose==3.1.1
 dacite
 expyrun
 ipywidgets
 matplotlib
 mypy
 notebook
+pandas
 pylint
 scikit-image
 scipy
-# tgv
+# tgv # TO BE PUBLISHED ON PYPI
 tqdm
 types-tqdm
