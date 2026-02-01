@@ -104,13 +104,18 @@ def main(name: str, cfg_data: dict) -> None:
                     aberration_amplitude=cfg.aberration_amplitude, name=blur_name, n_planes=5 * (dim == 3)
                 )[..., 70:-70, 70:-70]
 
+            # Build an imperfect kernel = kernel**gamma, but with the same normalization as kernel (1.0)
+            imperfect_kernel = kernel**cfg.psf_imperfection
+            imperfect_kernel /= imperfect_kernel.sum()
+            imperfect_kernel *= kernel.sum()
+
             for image_path in (cfg.data_folder / dataset).iterdir():
                 image_name = image_path.stem
                 image = load_image(image_path)
                 blurry = blur(image, kernel, noise=cfg.noise)
 
                 for method_name in cfg.methods:
-                    deblurred = METHODS[method_name.lower()].run(blurry, kernel).clip(0, 1)
+                    deblurred = METHODS[method_name.lower()].run(blurry, imperfect_kernel).clip(0, 1)
                     scores.append(
                         {
                             "dataset": dataset,
