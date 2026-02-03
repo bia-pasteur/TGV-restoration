@@ -79,6 +79,16 @@ def psnr(image: np.ndarray, deblurred: np.ndarray) -> float:
     return float(10 * np.log10((image**2).max() / np.mean((image - deblurred) ** 2)))
 
 
+def ssim(image: np.ndarray, deblurred: np.ndarray) -> float:
+    if image.shape[0] < 11:  # For very small stacks, let's only consider the 2D ssim
+        image = image[image.shape[0] // 2]
+        deblurred = deblurred[deblurred.shape[0] // 2]
+
+    return float(
+        skimage.metrics.structural_similarity(image, deblurred, data_range=1.0, channel_axis=-1, gaussian_weights=True)
+    )
+
+
 def main(name: str, cfg_data: dict) -> None:
     print("Running:", name)
     print(yaml.dump(cfg_data))
@@ -127,11 +137,12 @@ def main(name: str, cfg_data: dict) -> None:
                             "psf_imperfection": cfg.psf_imperfection,
                             "sparsity": cfg.sparsity,
                             "psnr": psnr(image, deblurred),
+                            "ssim": ssim(image, deblurred),
                         }
                     )
 
                     tqdm.tqdm.write(
-                        f"Image {dataset}-{image_name}, with blur {blur_name}: Method {method_name} => {psnr(image, deblurred)}"
+                        f"Image {dataset}-{image_name}, with blur {blur_name}: Method {method_name} => {(psnr(image, deblurred), ssim(image, deblurred))}"
                     )
 
     pd.DataFrame(scores).to_csv("scores.csv", index=False)
