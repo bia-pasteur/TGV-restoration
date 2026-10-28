@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite both the software and the associated paper."
+type: software
+title: "TGV Image Restoration"
+authors:
+  - family-names: Reme
+    given-names: Raphael
+  - family-names: Kesenci
+    given-names: Yekta
+
+repository-code: "https://github.com/bia-pasteur/TGV-Restoration"
+license: MIT
+version: "0.0.1"
+
+preferred-citation:
+  type: conference-paper
+  title: "An Arbitrarily High Order Total Generalized Variation Restoration Algorithm against Optical Aberrations in Microscopy Imaging"
+  authors:
+    - family-names: Kesenci
+      given-names: Yekta
+    - family-names: Reme
+      given-names: Raphael
+    - family-names: Le Folgoc
+      given-names: Loic
+    - family-names: Lagache
+      given-names: Thibault
+    - family-names: Angelini
+      given-names: Elsa
+    - family-names: Olivo-Marin
+      given-names: Jean-Christophe
+  # Currently under review.
+  # year: 2027
+  # collection-title: "2027 IEEE International Symposium on Biomedical Imaging (ISBI)"
+  # publisher:
+  #   name: "IEEE"
+  # start: 1
+  # end: 5
